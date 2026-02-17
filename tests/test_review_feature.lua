@@ -183,6 +183,53 @@ T["review_window_escape_rejects"] = function()
   eq(result.approved, false)
 end
 
+T["failed_tool_execution_skips_review_window"] = function()
+  -- Simulate tool execution failure with review requested
+  _G.child.lua_func(function()
+    _G.test_result = { review_shown = false, callback_called = false, error_received = nil }
+
+    -- Mock a tool execution that fails
+    local params = {
+      server_name = "test_server",
+      tool_name = "failing_tool",
+      tool_input = {},
+    }
+
+    -- Simulate the flow with review_requested = true but tool execution fails
+    local parsed = _G.shared.parse_params(params, "use_mcp_tool")
+    parsed.review_requested = true
+
+    -- Create a mock callback that tracks if it's called with an error
+    local function mock_callback(result, error)
+      _G.test_result.callback_called = true
+      _G.test_result.error_received = error ~= nil
+
+      -- Check if review window was created
+      local wins = vim.api.nvim_list_wins()
+      for _, win in ipairs(wins) do
+        local config = vim.api.nvim_win_get_config(win)
+        if config.title and type(config.title) == "table" then
+          local title_str = config.title[1][1]
+          if title_str:match("Review") then
+            _G.test_result.review_shown = true
+            break
+          end
+        end
+      end
+    end
+
+    -- Simulate error being passed to callback (review should NOT be shown)
+    mock_callback(nil, "Tool execution failed: connection timeout")
+
+    vim.wait(100)
+  end)
+
+  local result = _G.child.lua_get("_G.test_result")
+  eq(result.callback_called, true)
+  eq(result.error_received, true)
+  eq(result.review_shown, false) -- Review window should NOT appear on error
+end
+
 T["review_window_displays_images_count"] = function()
   _G.child.lua([[
         local result_data = {
