@@ -14,12 +14,7 @@ function M.register(opts)
         return
     end
 
-    local cc_editor_context = config.interactions
-        and config.interactions.chat
-        and config.interactions.chat.editor_context
-    if not cc_editor_context then
-        return
-    end
+    local cc_editor_context = config.interactions.shared.editor_context
 
     -- Remove existing MCP editor context entries
     for key, _ in pairs(cc_editor_context) do
